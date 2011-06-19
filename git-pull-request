@@ -98,12 +98,11 @@ def display(pr):
     else:
         conflict = color_text('*HAS CONFLICTS!*','red',True)
 
-    print "%s - %s %s" % (color_text('REQUEST %s' % pr['number'],'green'),pr['title'],conflict)
+    print "%s - %s %s" % (color_text('REQUEST %s' % pr.get('number'),'green'),pr.get('title'),conflict)
     print "    %s" % (color_text(pr['head']['label'],'yellow'))
-    print "    by %s (%s)" % (pr['user']['name'],pr['user']['login'])
-    print "    %s" % (color_text(pr['html_url'],'blue'))
+    print "    by %s (%s)" % (pr['user'].get('name'),pr['user'].get('login'))
+    print "    %s" % (color_text(pr.get('html_url'),'blue'))
     print
-
 
 """List open pull requests
 
