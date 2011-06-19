@@ -46,7 +46,7 @@ import re
 
 def main():
     global repo
-    repo = ''
+    repo, remote = '', None
 
     # parse command line options
     try:
@@ -61,16 +61,22 @@ def main():
             print __doc__
             sys.exit(0)
         if o in ("-r", "--repo"):
-            repo = a
+            if re.search('/', a):
+              repo = a
+            else:  
+              repo = a
+
+    if remote is None:
+        remote = 'origin'
 
     # get repo name from git config:
     if(repo == ''):
         repo = os.popen('git config github.repo').read().strip()
 
     # get repo name from origin
-    if(repo == ''):
+    if(repo == '' or remote != None):
         origin = os.popen('git remote -v').read()
-        m = re.search('^origin.*?github\.com.*?[:/]([^/]+/[^/]+)\.git\s*\(fetch\)$',origin,re.MULTILINE)
+        m = re.search("^%s.*?github\.com.*?[:/]([^/]+/[^/]+)\.git\s*\(fetch\)$" % remote, origin,re.MULTILINE)
         if(m != None and m.group(1) != ''):
             repo = m.group(1)
 
@@ -78,7 +84,8 @@ def main():
         print color_text("Failed to determine github repository name",'red',True)
         print "The repository is usually automatically detected from your remote origin."
         print "If your origin doesn't point to github, you can specify the repository on"
-        print "the command line using the -r parameter or configure it using"
+        print "the command line using the -r parameter, by specifying either a remote or"
+        print "the full repository name (user/repo), or configure it using"
         print "git config github.repo <user>/<repository>"
         sys.exit(1)
 
