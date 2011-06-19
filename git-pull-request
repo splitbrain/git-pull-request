@@ -64,7 +64,7 @@ def main():
             if re.search('/', a):
               repo = a
             else:  
-              repo = a
+              remote = a
 
     if remote is None:
         remote = 'origin'
