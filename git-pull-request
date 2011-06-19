@@ -6,7 +6,16 @@ Automatically check out github pull requests into their own branch.
 
 Usage:
 
-    git pull-request [<pull request number>]
+    git pull-request <OPTIONS> [<pull request number>]
+
+Options:
+
+    -h, --help
+        Display this message and exit
+
+    -r <repo>, --repo <repo>
+        Use this github repo instead of the 'remote origin' or 'github.repo'
+        git config settings. Needs to be in "user/repository" form
 
 Copyright (C) 2011 by Andreas Gohr <andi@splitbrain.org>
 
@@ -37,10 +46,11 @@ import re
 
 def main():
     global repo
+    repo = ''
 
     # parse command line options
     try:
-        opts, args = getopt.getopt(sys.argv[1:], "h", ["help"])
+        opts, args = getopt.getopt(sys.argv[1:], "hr:", ["help","repo:"])
     except getopt.error, msg:
         print msg
         print "for help use --help"
@@ -50,14 +60,27 @@ def main():
         if o in ("-h", "--help"):
             print __doc__
             sys.exit(0)
+        if o in ("-r", "--repo"):
+            repo = a
 
-    # get repo name
-    origin = os.popen('git remote -v').read()
-    m = re.search('^origin.*?github\.com.*?[:/]([^/]+/[^/]+)\.git\s*\(fetch\)$',origin,re.MULTILINE)
-    if(m == None or m.group(1) == ''):
-        print color_text("Failed to determine github repo name from origin",'red',True)
+    # get repo name from git config:
+    if(repo == ''):
+        repo = os.popen('git config github.repo').read().strip()
+
+    # get repo name from origin
+    if(repo == ''):
+        origin = os.popen('git remote -v').read()
+        m = re.search('^origin.*?github\.com.*?[:/]([^/]+/[^/]+)\.git\s*\(fetch\)$',origin,re.MULTILINE)
+        if(m != None and m.group(1) != ''):
+            repo = m.group(1)
+
+    if(repo == ''):
+        print color_text("Failed to determine github repository name",'red',True)
+        print "The repository is usually automatically detected from your remote origin."
+        print "If your origin doesn't point to github, you can specify the repository on"
+        print "the command line using the -r parameter or configure it using"
+        print "git config github.repo <user>/<repository>"
         sys.exit(1)
-    repo = m.group(1)
 
     # process arguments
     if len(args):
