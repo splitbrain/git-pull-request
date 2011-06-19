@@ -45,7 +45,6 @@ import os
 import re
 
 def main():
-    global repo
     repo, remote = '', None
 
     # parse command line options
@@ -91,9 +90,9 @@ def main():
 
     # process arguments
     if len(args):
-        ret = fetch(args[0])
+        ret = fetch(repo, args[0])
     else:
-        ret = show()
+        ret = show(repo)
 
     sys.exit(ret)
 
@@ -115,8 +114,7 @@ def display(pr):
 
 Queries the github API for open pull requests in the current repo
 """
-def show():
-    global repo
+def show(repo):
 
     print "loading open pull requests for %s..." % (repo)
     print
@@ -141,8 +139,7 @@ def show():
     return 0
 
 
-def fetch(pullreq):
-    global repo
+def fetch(repo, pullreq):
 
     print "loading pull request info for request %s..." % (pullreq)
     print
