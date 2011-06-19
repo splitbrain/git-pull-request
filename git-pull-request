@@ -45,8 +45,7 @@ import os
 import re
 
 def main():
-    global repo
-    repo = ''
+    repo, remote = '', None
 
     # parse command line options
     try:
@@ -61,16 +60,22 @@ def main():
             print __doc__
             sys.exit(0)
         if o in ("-r", "--repo"):
-            repo = a
+            if re.search('/', a):
+              repo = a
+            else:  
+              remote = a
+
+    if remote is None and repo == '':
+        remote = 'origin'
 
     # get repo name from git config:
     if(repo == ''):
         repo = os.popen('git config github.repo').read().strip()
 
     # get repo name from origin
-    if(repo == ''):
+    if(repo == '' or remote != None):
         origin = os.popen('git remote -v').read()
-        m = re.search('^origin.*?github\.com.*?[:/]([^/]+/[^/]+)\.git\s*\(fetch\)$',origin,re.MULTILINE)
+        m = re.search("^%s.*?github\.com.*?[:/]([^/]+/[^/]+)\.git\s*\(fetch\)$" % remote, origin,re.MULTILINE)
         if(m != None and m.group(1) != ''):
             repo = m.group(1)
 
@@ -78,15 +83,16 @@ def main():
         print color_text("Failed to determine github repository name",'red',True)
         print "The repository is usually automatically detected from your remote origin."
         print "If your origin doesn't point to github, you can specify the repository on"
-        print "the command line using the -r parameter or configure it using"
+        print "the command line using the -r parameter, by specifying either a remote or"
+        print "the full repository name (user/repo), or configure it using"
         print "git config github.repo <user>/<repository>"
         sys.exit(1)
 
     # process arguments
     if len(args):
-        ret = fetch(args[0])
+        ret = fetch(repo, args[0])
     else:
-        ret = show()
+        ret = show(repo)
 
     sys.exit(ret)
 
@@ -108,14 +114,18 @@ def display(pr):
 
 Queries the github API for open pull requests in the current repo
 """
-def show():
-    global repo
+def show(repo):
 
     print "loading open pull requests for %s..." % (repo)
     print
     url = "http://github.com/api/v2/json/pulls/%s/open" % (repo)
     req = urllib2.Request(url)
-    response = urllib2.urlopen(req)
+    try:
+      response = urllib2.urlopen(req)
+    except urllib2.HTTPError, msg:
+      print "error loading pull requests for repo %s: %s" % (repo, msg)
+      exit(1)
+
     data = response.read()
     if (data == ''):
         print "failed to speak with github."
@@ -129,8 +139,7 @@ def show():
     return 0
 
 
-def fetch(pullreq):
-    global repo
+def fetch(repo, pullreq):
 
     print "loading pull request info for request %s..." % (pullreq)
     print
@@ -143,7 +152,6 @@ def fetch(pullreq):
         return 3
 
     data = json.loads(data)
-    #print json.dumps(data,sort_keys=True, indent=4)
     pr = data['pull']
     display(pr)
 
