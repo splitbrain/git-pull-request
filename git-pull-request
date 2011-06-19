@@ -122,7 +122,12 @@ def show():
     print
     url = "http://github.com/api/v2/json/pulls/%s/open" % (repo)
     req = urllib2.Request(url)
-    response = urllib2.urlopen(req)
+    try:
+      response = urllib2.urlopen(req)
+    except urllib2.HTTPError, msg:
+      print "error loading pull requests for repo %s: %s" % (repo, msg)
+      exit(1)
+
     data = response.read()
     if (data == ''):
         print "failed to speak with github."
@@ -150,7 +155,6 @@ def fetch(pullreq):
         return 3
 
     data = json.loads(data)
-    #print json.dumps(data,sort_keys=True, indent=4)
     pr = data['pull']
     display(pr)
 
