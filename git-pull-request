@@ -55,7 +55,8 @@ def main():
     origin = os.popen('git remote -v').read()
     m = re.search('^origin.*?github\.com.*?[:/]([^/]+/[^/]+)\.git\s*\(fetch\)$',origin,re.MULTILINE)
     if(m == None or m.group(1) == ''):
-        print color_text("Failed to determine repo name from origin",'red',True)
+        print color_text("Failed to determine github repo name from origin",'red',True)
+        sys.exit(1)
     repo = m.group(1)
 
     # process arguments
