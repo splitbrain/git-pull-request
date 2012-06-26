@@ -62,7 +62,7 @@ def main():
         if o in ("-r", "--repo"):
             if re.search('/', a):
               repo = a
-            else:  
+            else:
               remote = a
 
     if remote is None and repo == '':
@@ -99,14 +99,9 @@ def main():
 """Nicely display info about a given pull request
 """
 def display(pr):
-    if(pr['mergeable']):
-        conflict = ''
-    else:
-        conflict = color_text('*HAS CONFLICTS!*','red',True)
-
-    print "%s - %s %s" % (color_text('REQUEST %s' % pr.get('number'),'green'),pr.get('title'),conflict)
+    print "%s - %s" % (color_text('REQUEST %s' % pr.get('number'),'green'),pr.get('title'))
     print "    %s" % (color_text(pr['head']['label'],'yellow'))
-    print "    by %s (%s)" % (pr['user'].get('name'),pr['user'].get('login'))
+    print "    by %s %s" % (pr['user'].get('login'), color_text(pr.get('created_at')[:10],'red'))
     print "    %s" % (color_text(pr.get('html_url'),'blue'))
     print
 
@@ -118,7 +113,7 @@ def show(repo):
 
     print "loading open pull requests for %s..." % (repo)
     print
-    url = "http://github.com/api/v2/json/pulls/%s/open" % (repo)
+    url = "https://api.github.com/repos/%s/pulls" % (repo)
     req = urllib2.Request(url)
     try:
       response = urllib2.urlopen(req)
@@ -134,7 +129,7 @@ def show(repo):
     data = json.loads(data)
     #print json.dumps(data,sort_keys=True, indent=4)
 
-    for pr in data['pulls']:
+    for pr in data:
         display(pr)
     return 0
 
