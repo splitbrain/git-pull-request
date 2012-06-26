@@ -138,7 +138,7 @@ def fetch(repo, pullreq):
 
     print "loading pull request info for request %s..." % (pullreq)
     print
-    url = "http://github.com/api/v2/json/pulls/%s/%s" % (repo, pullreq)
+    url = "https://api.github.com/repos/%s/pulls/%s" % (repo, pullreq)
     req = urllib2.Request(url)
     response = urllib2.urlopen(req)
     data = response.read()
@@ -147,7 +147,7 @@ def fetch(repo, pullreq):
         return 3
 
     data = json.loads(data)
-    pr = data['pull']
+    pr = data
     display(pr)
 
     local  = 'pull-request-%s' % (pullreq)
@@ -163,9 +163,9 @@ def fetch(repo, pullreq):
         print "Failed to create/switch branch"
         return 5
 
-    print "pulling from %s (%s)" % (pr['head']['repository']['url'], pr['head']['ref']);
+    print "pulling from %s (%s)" % (pr['head']['repo']['git_url'], pr['head']['ref']);
 
-    ret = os.system('git pull %s %s' % (pr['head']['repository']['url'], pr['head']['ref']));
+    ret = os.system('git pull %s %s' % (pr['head']['repo']['git_url'], pr['head']['ref']));
 
     print
     print color_text("done. examine changes and merge into master if good",'green');
