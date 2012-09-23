@@ -165,7 +165,7 @@ def fetch(repo, pullreq):
 
     print "pulling from %s (%s)" % (pr['head']['repo']['git_url'], pr['head']['ref']);
 
-    ret = os.system('git pull %s %s' % (pr['head']['repo']['git_url'], pr['head']['ref']));
+    ret = os.system('git pull %s %s' % (pr['head']['repo']['git_url'], pr['head']['ref'].replace('#', '\#')));
 
     print
     print color_text("done. examine changes and merge into master if good",'green');
