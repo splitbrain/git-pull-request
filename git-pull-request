@@ -76,9 +76,9 @@ def main():
     if(repo == '' or remote != None):
         origin = os.popen("git config remote.%s.url" % remote).read()
         origin = re.sub("(\.git)?\s*$", "", origin)
-        m = re.search("[^/:]+/[^/]+$", origin)
+        m = re.search(r"\bgithub\.com[:/]([^/]+/[^/]+)$", origin)
         if(m != None):
-            repo = m.group()
+            repo = m.group(1)
 
     if(repo == ''):
         print color_text("Failed to determine github repository name",'red',True)
