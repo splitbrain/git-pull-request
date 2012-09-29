@@ -74,10 +74,11 @@ def main():
 
     # get repo name from origin
     if(repo == '' or remote != None):
-        origin = os.popen('git remote -v').read()
-        m = re.search("^%s.*?github\.com.*?[:/]([^/]+/[^/]+)\.git\s*\(fetch\)$" % remote, origin,re.MULTILINE)
-        if(m != None and m.group(1) != ''):
-            repo = m.group(1)
+        origin = os.popen("git config remote.%s.url" % remote).read()
+        origin = re.sub("(\.git)?\s*$", "", origin)
+        m = re.search("[^/:]+/[^/]+$", origin)
+        if(m != None):
+            repo = m.group()
 
     if(repo == ''):
         print color_text("Failed to determine github repository name",'red',True)
