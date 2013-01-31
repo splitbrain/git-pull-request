@@ -1,4 +1,4 @@
-#!/usr/bin/env python2
+#!/usr/bin/env python3
 
 """git pull-request
 
@@ -40,7 +40,7 @@ THE SOFTWARE.
 import sys
 import getopt
 import json
-import urllib2
+import urllib.request, urllib.error, urllib.parse
 import os
 import re
 
@@ -50,14 +50,14 @@ def main():
     # parse command line options
     try:
         opts, args = getopt.getopt(sys.argv[1:], "hr:", ["help","repo:"])
-    except getopt.error, msg:
-        print msg
-        print "for help use --help"
+    except getopt.error as msg:
+        print(msg)
+        print("for help use --help")
         sys.exit(2)
     # process options
     for o, a in opts:
         if o in ("-h", "--help"):
-            print __doc__
+            print(__doc__)
             sys.exit(0)
         if o in ("-r", "--repo"):
             if re.search('/', a):
@@ -81,12 +81,12 @@ def main():
             repo = m.group(1)
 
     if(repo == ''):
-        print color_text("Failed to determine github repository name",'red',True)
-        print "The repository is usually automatically detected from your remote origin."
-        print "If your origin doesn't point to github, you can specify the repository on"
-        print "the command line using the -r parameter, by specifying either a remote or"
-        print "the full repository name (user/repo), or configure it using"
-        print "git config github.repo <user>/<repository>"
+        print(color_text("Failed to determine github repository name",'red',True))
+        print("The repository is usually automatically detected from your remote origin.")
+        print("If your origin doesn't point to github, you can specify the repository on")
+        print("the command line using the -r parameter, by specifying either a remote or")
+        print("the full repository name (user/repo), or configure it using")
+        print("git config github.repo <user>/<repository>")
         sys.exit(1)
 
     # process arguments
@@ -100,11 +100,11 @@ def main():
 """Nicely display info about a given pull request
 """
 def display(pr):
-    print "%s - %s" % (color_text('REQUEST %s' % pr.get('number'),'green'),pr.get('title'))
-    print "    %s" % (color_text(pr['head']['label'],'yellow'))
-    print "    by %s %s" % (pr['user'].get('login'), color_text(pr.get('created_at')[:10],'red'))
-    print "    %s" % (color_text(pr.get('html_url'),'blue'))
-    print
+    print("%s - %s" % (color_text('REQUEST %s' % pr.get('number'),'green'),pr.get('title')))
+    print("    %s" % (color_text(pr['head']['label'],'yellow')))
+    print("    by %s %s" % (pr['user'].get('login'), color_text(pr.get('created_at')[:10],'red')))
+    print("    %s" % (color_text(pr.get('html_url'),'blue')))
+    print()
 
 """List open pull requests
 
@@ -112,19 +112,19 @@ Queries the github API for open pull requests in the current repo
 """
 def show(repo):
 
-    print "loading open pull requests for %s..." % (repo)
-    print
+    print("loading open pull requests for %s..." % (repo))
+    print()
     url = "https://api.github.com/repos/%s/pulls" % (repo)
-    req = urllib2.Request(url)
+    req = urllib.request.Request(url)
     try:
-      response = urllib2.urlopen(req)
-    except urllib2.HTTPError, msg:
-      print "error loading pull requests for repo %s: %s" % (repo, msg)
+      response = urllib.request.urlopen(req)
+    except urllib.error.HTTPError as msg:
+      print("error loading pull requests for repo %s: %s" % (repo, msg))
       exit(1)
 
-    data = response.read()
+    data = response.read().decode("UTF-8")
     if (data == ''):
-        print "failed to speak with github."
+        print("failed to speak with github.")
         return 3
 
     data = json.loads(data)
@@ -137,14 +137,14 @@ def show(repo):
 
 def fetch(repo, pullreq):
 
-    print "loading pull request info for request %s..." % (pullreq)
-    print
+    print("loading pull request info for request %s..." % (pullreq))
+    print()
     url = "https://api.github.com/repos/%s/pulls/%s" % (repo, pullreq)
-    req = urllib2.Request(url)
-    response = urllib2.urlopen(req)
-    data = response.read()
+    req = urllib.request.Request(url)
+    response = urllib.request.urlopen(req)
+    data = response.read().decode("UTF-8")
     if (data == ''):
-        print "failed to speak with github."
+        print("failed to speak with github.")
         return 3
 
     data = json.loads(data)
@@ -154,22 +154,22 @@ def fetch(repo, pullreq):
     local  = 'pull-request-%s' % (pullreq)
     branch = os.popen("git branch|grep '^*'|awk '{print $2}'").read().strip();
     if(branch != pr['base']['ref'] and branch != local):
-        print color_text("The pull request is based on branch '%s' but you're on '%s' currently" % \
-            (pr['base']['ref'], branch),'red',True)
+        print(color_text("The pull request is based on branch '%s' but you're on '%s' currently" % \
+            (pr['base']['ref'], branch),'red',True))
         return 4
 
     ret = os.system('git branch %s' % (local));
     ret = os.system('git checkout %s' % (local));
     if(ret != 0):
-        print "Failed to create/switch branch"
+        print("Failed to create/switch branch")
         return 5
 
-    print "pulling from %s (%s)" % (pr['head']['repo']['git_url'], pr['head']['ref']);
+    print("pulling from %s (%s)" % (pr['head']['repo']['git_url'], pr['head']['ref']));
 
     ret = os.system('git pull %s %s' % (pr['head']['repo']['git_url'], pr['head']['ref']));
 
-    print
-    print color_text("done. examine changes and merge into master if good",'green');
+    print()
+    print(color_text("done. examine changes and merge into master if good",'green'));
 
     return 0
 
