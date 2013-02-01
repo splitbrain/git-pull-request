@@ -149,6 +149,10 @@ def fetch(repo, pullreq):
 
     data = json.loads(data)
     pr = data
+    if pr['head']['repo'] == None:
+      print("remote repository for this pull request "
+            "does not exist anymore.")
+      return 6
     display(pr)
 
     local  = 'pull-request-%s' % (pullreq)
