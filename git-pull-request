@@ -43,6 +43,7 @@ import json
 import urllib2
 import os
 import re
+import pipes
 
 def main():
     repo, remote = '', None
@@ -74,7 +75,8 @@ def main():
 
     # get repo name from origin
     if(repo == '' or remote != None):
-        origin = os.popen("git config remote.%s.url" % remote).read()
+        escaped = pipes.quote(remote)
+        origin = os.popen("git config remote.%s.url" % escaped).read()
         origin = re.sub("(\.git)?\s*$", "", origin)
         m = re.search(r"\bgithub\.com[:/]([^/]+/[^/]+)$", origin)
         if(m != None):
@@ -155,7 +157,7 @@ def fetch(repo, pullreq):
       return 6
     display(pr)
 
-    local  = 'pull-request-%s' % (pullreq)
+    local  = pipes.quote('pull-request-%s' % (pullreq))
     branch = os.popen("git branch|grep '^*'|awk '{print $2}'").read().strip();
     if(branch != pr['base']['ref'] and branch != local):
         print color_text("The pull request is based on branch '%s' but you're on '%s' currently" % \
@@ -170,7 +172,9 @@ def fetch(repo, pullreq):
 
     print "pulling from %s (%s)" % (pr['head']['repo']['git_url'], pr['head']['ref']);
 
-    ret = os.system('git pull %s %s' % (pr['head']['repo']['git_url'], pr['head']['ref']));
+    git_url = pipes.quote(pr['head']['repo']['git_url'])
+    ref = pipes.quote(pr['head']['ref'])
+    ret = os.system('git pull %s %s' % (git_url, ref));
 
     print
     print color_text("done. examine changes and merge into master if good",'green');
