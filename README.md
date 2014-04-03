@@ -7,6 +7,7 @@ Installation
 ------------
 
 Copy the script to somewhere in your ``PATH`` and make it executable.
+
 Set github.token to your github OAUTH token
     i.e. git config --global github.token OAUTH-TOKEN
 
