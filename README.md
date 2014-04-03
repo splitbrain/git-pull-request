@@ -6,7 +6,9 @@ Automatically check out github pull requests into their own branch.
 Installation
 ------------
 
-Just copy the script to somewhere in your ``PATH`` and make it executable.
+Copy the script to somewhere in your ``PATH`` and make it executable.
+Set github.token to your github OAUTH token
+    i.e. git config --global github.token OAUTH-TOKEN
 
 If you need Python 3 support be sure to use the ``python3`` branch.
 
