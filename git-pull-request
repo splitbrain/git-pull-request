@@ -71,7 +71,6 @@ def main():
 
     # attempt to get token from git config
     token = os.popen("git config --get github.token").read().rstrip()
-    print token
     # get repo name from git config:
     if(repo == ''):
         repo = os.popen('git config github.repo').read().strip()
