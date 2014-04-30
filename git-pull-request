@@ -131,12 +131,10 @@ def show(repo, token):
     try:
         response = urllib2.urlopen(req)
     except urllib2.HTTPError, msg:
+        print "error loading pull requests for repo %s: %s" % (repo, msg)
         if msg.code == 404:
             # GH replies with 404 when a repo is not found or private and we request without OAUTH
-            print "repo %s not found: %s" % (repo, msg)
             print "if this is a private repo, please set github.token to a valid GH oauth token"
-        else:
-            print "error loading pull requests for repo %s: %s" % (repo, msg)
         exit(1)
 
     data = response.read()
@@ -167,13 +165,12 @@ def fetch(repo, token, pullreq):
     try:
         response = urllib2.urlopen(req)
     except urllib2.HTTPError, msg:
+        print "error loading pull requests for repo %s: %s" % (repo, msg)
         if msg.code == 404:
             # GH replies with 404 when a repo is not found or private and we request without OAUTH
-            print "repo %s not found: %s" % (repo, msg)
             print "if this is a private repo, please set github.token to a valid GH oauth token"
-        else:
-            print "error loading pull requests for repo %s: %s" % (repo, msg)
         exit(1)
+
     data = response.read()
     if (data == ''):
         print "failed to speak with github."
@@ -181,6 +178,7 @@ def fetch(repo, token, pullreq):
 
     data = json.loads(data)
     pr = data
+    print json.dumps(pr, sort_keys=True, indent=4, separators=(',', ': '))
     if pr['head']['repo'] is None:
         print("remote repository for this pull request "
               "does not exist anymore.")
@@ -203,7 +201,13 @@ def fetch(repo, token, pullreq):
 
     git_url = pipes.quote(pr['head']['repo']['git_url'])
     ref = pipes.quote(pr['head']['ref'])
+    print 'git pull %s %s' % (git_url, ref)
     ret = os.system('git pull %s %s' % (git_url, ref))
+    if(ret != 0):
+        print color_text("branch %s no longer exists." % ref, 'red')
+        os.system('git checkout %s' % branch)
+        os.system('git branch -D %s' % local)
+        exit(1)
 
     print
     print color_text("done. examine changes and merge into master if good", 'green')
