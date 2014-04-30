@@ -48,7 +48,6 @@ import pipes
 
 def main():
     repo, remote = '', None
-    token = os.popen("git config --get github.token").read().rstrip()
     # parse command line options
     try:
         opts, args = getopt.getopt(sys.argv[1:], "hr:", ["help", "repo:"])
@@ -70,6 +69,9 @@ def main():
     if remote is None and repo == '':
         remote = 'origin'
 
+    # attempt to get token from git config
+    token = os.popen("git config --get github.token").read().rstrip()
+    print token
     # get repo name from git config:
     if(repo == ''):
         repo = os.popen('git config github.repo').read().strip()
@@ -119,12 +121,23 @@ def show(repo, token):
     print "loading open pull requests for %s..." % (repo)
     print
     url = "https://api.github.com/repos/%s/pulls" % (repo)
+
+    if len(token):
+        headers = {'User-Agent': 'git-pull-request', 'Authorization': 'token %s' % token}
+    else:
+        headers = {'User-Agent': 'git-pull-request'}
+
     req = urllib2.Request(
-        url, headers={'User-Agent': 'Awesome-Octocat-App', 'Authorization': 'token ' + token})
+        url, headers=headers)
     try:
         response = urllib2.urlopen(req)
     except urllib2.HTTPError, msg:
-        print "error loading pull requests for repo %s: %s" % (repo, msg)
+        if msg.code == 404:
+            # GH replies with 404 when a repo is not found or private and we request without OAUTH
+            print "repo %s not found: %s" % (repo, msg)
+            print "if this is a private repo, please set github.token to a valid GH oauth token"
+        else:
+            print "error loading pull requests for repo %s: %s" % (repo, msg)
         exit(1)
 
     data = response.read()
@@ -144,9 +157,24 @@ def fetch(repo, token, pullreq):
     print "loading pull request info for request %s..." % (pullreq)
     print
     url = "https://api.github.com/repos/%s/pulls/%s" % (repo, pullreq)
+
+    if len(token):
+        headers = {'User-Agent': 'git-pull-request', 'Authorization': 'token %s' % token}
+    else:
+        headers = {'User-Agent': 'git-pull-request'}
+
     req = urllib2.Request(
-        url, headers={'User-Agent': 'Awesome-Octocat-App', 'Authorization': 'token ' + token})
-    response = urllib2.urlopen(req)
+        url, headers=headers)
+    try:
+        response = urllib2.urlopen(req)
+    except urllib2.HTTPError, msg:
+        if msg.code == 404:
+            # GH replies with 404 when a repo is not found or private and we request without OAUTH
+            print "repo %s not found: %s" % (repo, msg)
+            print "if this is a private repo, please set github.token to a valid GH oauth token"
+        else:
+            print "error loading pull requests for repo %s: %s" % (repo, msg)
+        exit(1)
     data = response.read()
     if (data == ''):
         print "failed to speak with github."
