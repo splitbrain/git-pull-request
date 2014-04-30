@@ -45,12 +45,12 @@ import os
 import re
 import pipes
 
+
 def main():
     repo, remote = '', None
-
     # parse command line options
     try:
-        opts, args = getopt.getopt(sys.argv[1:], "hr:", ["help","repo:"])
+        opts, args = getopt.getopt(sys.argv[1:], "hr:", ["help", "repo:"])
     except getopt.error, msg:
         print msg
         print "for help use --help"
@@ -62,28 +62,30 @@ def main():
             sys.exit(0)
         if o in ("-r", "--repo"):
             if re.search('/', a):
-              repo = a
+                repo = a
             else:
-              remote = a
+                remote = a
 
     if remote is None and repo == '':
         remote = 'origin'
 
+    # attempt to get token from git config
+    token = os.popen("git config --get github.token").read().rstrip()
     # get repo name from git config:
     if(repo == ''):
         repo = os.popen('git config github.repo').read().strip()
 
     # get repo name from origin
-    if(repo == '' or remote != None):
+    if(repo == '' or remote is not None):
         escaped = pipes.quote(remote)
         origin = os.popen("git config remote.%s.url" % escaped).read()
         origin = re.sub("(\.git)?\s*$", "", origin)
         m = re.search(r"\bgithub\.com[:/]([^/]+/[^/]+)$", origin)
-        if(m != None):
+        if(m is not None):
             repo = m.group(1)
 
     if(repo == ''):
-        print color_text("Failed to determine github repository name",'red',True)
+        print color_text("Failed to determine github repository name", 'red', True)
         print "The repository is usually automatically detected from your remote origin."
         print "If your origin doesn't point to github, you can specify the repository on"
         print "the command line using the -r parameter, by specifying either a remote or"
@@ -93,36 +95,47 @@ def main():
 
     # process arguments
     if len(args):
-        ret = fetch(repo, args[0])
+        ret = fetch(repo, token, args[0])
     else:
-        ret = show(repo)
+        ret = show(repo, token)
 
     sys.exit(ret)
 
-"""Nicely display info about a given pull request
-"""
+
 def display(pr):
-    print "%s - %s" % (color_text('REQUEST %s' % pr.get('number'),'green'),pr.get('title'))
-    print "    %s" % (color_text(pr['head']['label'],'yellow'))
-    print "    by %s %s" % (pr['user'].get('login'), color_text(pr.get('created_at')[:10],'red'))
-    print "    %s" % (color_text(pr.get('html_url'),'blue'))
+    """Nicely display info about a given pull request
+    """
+    print "%s - %s" % (color_text('REQUEST %s' % pr.get('number'), 'green'), pr.get('title'))
+    print "    %s" % (color_text(pr['head']['label'], 'yellow'))
+    print "    by %s %s" % (pr['user'].get('login'), color_text(pr.get('created_at')[:10], 'red'))
+    print "    %s" % (color_text(pr.get('html_url'), 'blue'))
     print
 
-"""List open pull requests
 
-Queries the github API for open pull requests in the current repo
-"""
-def show(repo):
+def show(repo, token):
+    """List open pull requests
 
+    Queries the github API for open pull requests in the current repo
+    """
     print "loading open pull requests for %s..." % (repo)
     print
     url = "https://api.github.com/repos/%s/pulls" % (repo)
-    req = urllib2.Request(url)
+
+    if len(token):
+        headers = {'User-Agent': 'git-pull-request', 'Authorization': 'token %s' % token}
+    else:
+        headers = {'User-Agent': 'git-pull-request'}
+
+    req = urllib2.Request(
+        url, headers=headers)
     try:
-      response = urllib2.urlopen(req)
+        response = urllib2.urlopen(req)
     except urllib2.HTTPError, msg:
-      print "error loading pull requests for repo %s: %s" % (repo, msg)
-      exit(1)
+        print "error loading pull requests for repo %s: %s" % (repo, msg)
+        if msg.code == 404:
+            # GH replies with 404 when a repo is not found or private and we request without OAUTH
+            print "if this is a private repo, please set github.token to a valid GH oauth token"
+        exit(1)
 
     data = response.read()
     if (data == ''):
@@ -130,20 +143,34 @@ def show(repo):
         return 3
 
     data = json.loads(data)
-    #print json.dumps(data,sort_keys=True, indent=4)
+    # print json.dumps(data,sort_keys=True, indent=4)
 
     for pr in data:
         display(pr)
     return 0
 
 
-def fetch(repo, pullreq):
-
+def fetch(repo, token, pullreq):
     print "loading pull request info for request %s..." % (pullreq)
     print
     url = "https://api.github.com/repos/%s/pulls/%s" % (repo, pullreq)
-    req = urllib2.Request(url)
-    response = urllib2.urlopen(req)
+
+    if len(token):
+        headers = {'User-Agent': 'git-pull-request', 'Authorization': 'token %s' % token}
+    else:
+        headers = {'User-Agent': 'git-pull-request'}
+
+    req = urllib2.Request(
+        url, headers=headers)
+    try:
+        response = urllib2.urlopen(req)
+    except urllib2.HTTPError, msg:
+        print "error loading pull requests for repo %s: %s" % (repo, msg)
+        if msg.code == 404:
+            # GH replies with 404 when a repo is not found or private and we request without OAUTH
+            print "if this is a private repo, please set github.token to a valid GH oauth token"
+        exit(1)
+
     data = response.read()
     if (data == ''):
         print "failed to speak with github."
@@ -151,42 +178,48 @@ def fetch(repo, pullreq):
 
     data = json.loads(data)
     pr = data
-    if pr['head']['repo'] == None:
-      print("remote repository for this pull request "
-            "does not exist anymore.")
-      return 6
+    print json.dumps(pr, sort_keys=True, indent=4, separators=(',', ': '))
+    if pr['head']['repo'] is None:
+        print("remote repository for this pull request "
+              "does not exist anymore.")
+        return 6
     display(pr)
 
-    local  = pipes.quote('pull-request-%s' % (pullreq))
-    branch = os.popen("git branch|grep '^*'|awk '{print $2}'").read().strip();
+    local = pipes.quote('pull-request-%s' % (pullreq))
+    branch = os.popen("git branch|grep '^*'|awk '{print $2}'").read().strip()
     if(branch != pr['base']['ref'] and branch != local):
-        print color_text("The pull request is based on branch '%s' but you're on '%s' currently" % \
-            (pr['base']['ref'], branch),'red',True)
+        print color_text("The pull request is based on branch '%s' but you're on '%s' currently" % (pr['base']['ref'], branch), 'red', True)
         return 4
 
-    ret = os.system('git branch %s' % (local));
-    ret = os.system('git checkout %s' % (local));
+    ret = os.system('git branch %s' % (local))
+    ret = os.system('git checkout %s' % (local))
     if(ret != 0):
         print "Failed to create/switch branch"
         return 5
 
-    print "pulling from %s (%s)" % (pr['head']['repo']['git_url'], pr['head']['ref']);
+    print "pulling from %s (%s)" % (pr['head']['repo']['git_url'], pr['head']['ref'])
 
     git_url = pipes.quote(pr['head']['repo']['git_url'])
     ref = pipes.quote(pr['head']['ref'])
-    ret = os.system('git pull %s %s' % (git_url, ref));
+    print 'git pull %s %s' % (git_url, ref)
+    ret = os.system('git pull %s %s' % (git_url, ref))
+    if(ret != 0):
+        print color_text("branch %s no longer exists." % ref, 'red')
+        os.system('git checkout %s' % branch)
+        os.system('git branch -D %s' % local)
+        exit(1)
 
     print
-    print color_text("done. examine changes and merge into master if good",'green');
+    print color_text("done. examine changes and merge into master if good", 'green')
 
     return 0
 
 
-"""Return the given text in ANSI colors
-
-From http://travelingfrontiers.wordpress.com/2010/08/22/how-to-add-colors-to-linux-command-line-output/
-"""
 def color_text(text, color_name, bold=False):
+    """Return the given text in ANSI colors
+
+    From http://travelingfrontiers.wordpress.com/2010/08/22/how-to-add-colors-to-linux-command-line-output/
+    """
     colors = (
         'black', 'red', 'green', 'yellow',
         'blue', 'magenta', 'cyan', 'white'
@@ -205,4 +238,3 @@ def color_text(text, color_name, bold=False):
 
 if __name__ == "__main__":
     main()
-
