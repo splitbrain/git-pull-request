@@ -6,17 +6,31 @@ Automatically check out github pull requests into their own branch.
 
 Usage:
 
-    git pull-request <OPTIONS> [<pull request number>]
+    git pull-request <OPTIONS> <pull request number>
+
+    When a PR# is specified, it will be fetched, otherwise a list of PRs 
+    in the remote branch will be shown.
 
 Options:
 
     -h, --help
         Display this message and exit
 
-    -r <repo>, --repo <repo>
+    -r <remote or full/repo>, --repo <full/repo>, --remote <remote>
         Use this github repo instead of the 'remote origin' or 'github.repo'
-        git config settings. Needs to be in "user/repository" form
+        git config settings. Full form needs to be "user/repository", otherwise
+        it is assumed to be a short remote alias name
 
+    -g, --git  
+        Use git_url instead of http URL for fetching
+
+    --copy
+        List the Copyright details
+
+Copyright (C) 2011 by Andreas Gohr <andi@splitbrain.org>
+"""
+
+copyright = """
 Copyright (C) 2011 by Andreas Gohr <andi@splitbrain.org>
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -37,6 +51,7 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 """
+
 import sys
 import getopt
 import json
@@ -47,10 +62,12 @@ import pipes
 
 
 def main():
-    repo, remote = '', None
+    repo, remote = None, None
+    git_method = 'html_url'
+
     # parse command line options
     try:
-        opts, args = getopt.getopt(sys.argv[1:], "hr:", ["help", "repo:"])
+        opts, args = getopt.getopt(sys.argv[1:], "hr:g", ["help", "repo:", "copy","git"])
     except getopt.error, msg:
         print msg
         print "for help use --help"
@@ -60,42 +77,63 @@ def main():
         if o in ("-h", "--help"):
             print __doc__
             sys.exit(0)
-        if o in ("-r", "--repo"):
+        elif o in ("--copy"):
+            print copyright
+            sys.exit(0)
+        elif o in ("-g", "--git"):
+            git_method = 'git_url'
+        elif o in ("-r", "--repo", "--remote"):
             if re.search('/', a):
                 repo = a
             else:
                 remote = a
 
-    if remote is None and repo == '':
-        remote = 'origin'
 
     # attempt to get token from git config
     token = os.popen("git config --get github.token").read().rstrip()
-    # get repo name from git config:
-    if(repo == ''):
-        repo = os.popen('git config github.repo').read().strip()
+    # try to get repo name from git config:
+    if not repo and not remote:
+        repo = os.popen('git config --get github.repo').read().strip()
 
-    # get repo name from origin
-    if(repo == '' or remote is not None):
-        escaped = pipes.quote(remote)
-        origin = os.popen("git config remote.%s.url" % escaped).read()
-        origin = re.sub("(\.git)?\s*$", "", origin)
-        m = re.search(r"\bgithub\.com[:/]([^/]+/[^/]+)$", origin)
-        if(m is not None):
-            repo = m.group(1)
+    if repo and not re.search('/', repo):
+        # if repo is not a full repo, assume it is remote alias
+        remote = repo
+        repo = None
 
-    if(repo == ''):
+    # else try to get remote from git config:
+    if not repo:
+        if not remote:
+            remote = os.popen('git config --get github.remote').read().strip()
+        if not remote:
+            remote = 'origin'
+
+        if remote:
+            # get full repo name from remote url
+            escaped = pipes.quote(remote)
+            origin = os.popen("git config --get remote.%s.url" % escaped).read()
+            origin = re.sub("(\.git)?\s*$", "", origin)
+            m = re.search(r"\bgithub\.com[:/]([^/]+/[^/]+)$", origin)
+            if(m is not None):
+                repo = m.group(1)
+
+    if not repo:
         print color_text("Failed to determine github repository name", 'red', True)
-        print "The repository is usually automatically detected from your remote origin."
-        print "If your origin doesn't point to github, you can specify the repository on"
+        print "The repository is usually automatically detected from your remote."
+        print "By default the remote is assumed to be 'origin', but you can override this by"
+        print "using the -r parameter or specifying the github.remote option in your config"
+        print ""
+        print "   git config --global github.remote upstream"
+        print ""
+        print "If your remote url doesn't point to github, you can specify the repository on"
         print "the command line using the -r parameter, by specifying either a remote or"
         print "the full repository name (user/repo), or configure it using"
-        print "git config github.repo <user>/<repository>"
+        print ""
+        print "   git config github.repo <user>/<repository>"
         sys.exit(1)
 
     # process arguments
     if len(args):
-        ret = fetch(repo, token, args[0])
+        ret = fetch(repo, token, args[0], git_method)
     else:
         ret = show(repo, token)
 
@@ -138,7 +176,7 @@ def show(repo, token):
         exit(1)
 
     data = response.read()
-    if (data == ''):
+    if not data:
         print "failed to speak with github."
         return 3
 
@@ -150,7 +188,7 @@ def show(repo, token):
     return 0
 
 
-def fetch(repo, token, pullreq):
+def fetch(repo, token, pullreq, git_method):
     print "loading pull request info for request %s..." % (pullreq)
     print
     url = "https://api.github.com/repos/%s/pulls/%s" % (repo, pullreq)
@@ -172,7 +210,7 @@ def fetch(repo, token, pullreq):
         exit(1)
 
     data = response.read()
-    if (data == ''):
+    if not data:
         print "failed to speak with github."
         return 3
 
@@ -197,12 +235,13 @@ def fetch(repo, token, pullreq):
         print "Failed to create/switch branch"
         return 5
 
-    print "pulling from %s (%s)" % (pr['head']['repo']['git_url'], pr['head']['ref'])
 
-    git_url = pipes.quote(pr['head']['repo']['git_url'])
+    print "pulling from %s (%s)" % (pr['head']['repo'][git_method], pr['head']['ref'])
+
+    url = pipes.quote(pr['head']['repo'][git_method])
     ref = pipes.quote(pr['head']['ref'])
-    print 'git pull %s %s' % (git_url, ref)
-    ret = os.system('git pull %s %s' % (git_url, ref))
+    print 'git pull %s %s' % (url, ref)
+    ret = os.system('git pull %s %s' % (url, ref))
     if(ret != 0):
         print color_text("branch %s no longer exists." % ref, 'red')
         os.system('git checkout %s' % branch)
