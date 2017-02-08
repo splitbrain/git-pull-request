@@ -1,0 +1,30 @@
+'\" t 
+.TH "GIT\-PULL\-REQUEST" "1" "07/27/2011" "" "Git Pull Request Manual"
+.nh
+.ad1
+.SH "NAME"
+git-pull-request \- Fetch and check out a github pull request into a branch
+.SH "SYNOPSIS"
+.sp
+\fIgit pull-request\fR [\-r <repo>] [<pull request number>]
+.SH "DESCRIPTION"
+List pull requests for a repository at github\&.  If a pull request number is
+specified, that changeset will be pulled and checked out onto a branch\&.
+.sp
+.SH "OPTIONS"
+.sp
+ \-h, \-\-help
+.RS 4
+Display a usage message\&.
+.RE
+.PP
+\-r <repo>, \-\-repo <repo>
+.RS 4
+Use this github repo instead of the 'remote origin' or 'github.repo'
+git config settings\&. Repo must be in "user/repository" form\&.
+.RE
+.SH "AUTHOR"
+.sp
+Written by Andreas Gohr <\m[blue]\fBandi@splitbrain\&.org\fR\m[]\d\s+2>
+.sp
+Additional contribs from S. Zachariah Sprackett <\m[blue]\fBzac@sprackett\&.com\fR\m[]\d\s+2>
